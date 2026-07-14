@@ -122,12 +122,19 @@ Everything runs on a single Mac. Set it up once, then launch a class in one comm
 ### Installation
 
 ```bash
-# 1. System deps + Python venv + speech model (~465 MB)
+# 1. Clone the repo and enter the folder
+git clone https://github.com/rafsunsheikh/ClassCaption.git
+cd ClassCaption
+
+# 2. System deps + Python venv + speech model (~465 MB)
 ./install.sh
 
-# 2. Pull the translation model (if you don't have it)
+# 3. Pull the translation model (if you don't have it)
 ollama pull gemma4
 ```
+
+All the scripts below (`./install.sh`, `./run.sh`) are run from inside this
+cloned folder.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
