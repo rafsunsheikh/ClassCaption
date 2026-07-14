@@ -72,6 +72,19 @@ to follow.
 Typical delay from speaking to a student hearing it: **~2–4 seconds**
 (transcription + translation; the network itself is milliseconds).
 
+<table>
+  <tr>
+    <td align="center" valign="top" width="62%">
+      <img src="images/teacher-console.png" alt="Teacher console showing start/stop controls, a QR code for students, live stats, and the bilingual live feed" width="100%">
+      <br /><em>Teacher Console — runs on your Mac (<code>/live</code>)</em>
+    </td>
+    <td align="center" valign="top" width="38%">
+      <img src="images/student-phone.png" alt="Student phone showing Chinese captions with the current line highlighted and audio controls" width="100%">
+      <br /><em>Student view — on each phone (<code>/student</code>)</em>
+    </td>
+  </tr>
+</table>
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### How It Works
