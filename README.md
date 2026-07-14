@@ -22,9 +22,9 @@
     <br /><br />
     <a href="#usage">Usage</a>
     &middot;
-    <a href="https://github.com/rafsunsheikh/classcaption/issues">Report Bug</a>
+    <a href="https://github.com/rafsunsheikh/ClassCaption/issues">Report Bug</a>
     &middot;
-    <a href="https://github.com/rafsunsheikh/classcaption/issues">Request Feature</a>
+    <a href="https://github.com/rafsunsheikh/ClassCaption/issues">Request Feature</a>
   </p>
 </div>
 
@@ -254,7 +254,7 @@ Distributed under the MIT License. See [`LICENSE`](LICENSE) for more information
 
 Rafsun Sheikh — [@rafsunsheikh](https://github.com/rafsunsheikh)
 
-Project Link: [https://github.com/rafsunsheikh/classcaption](https://github.com/rafsunsheikh/classcaption)
+Project Link: [https://github.com/rafsunsheikh/ClassCaption](https://github.com/rafsunsheikh/ClassCaption)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -270,14 +270,14 @@ Project Link: [https://github.com/rafsunsheikh/classcaption](https://github.com/
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/rafsunsheikh/classcaption.svg?style=for-the-badge
-[contributors-url]: https://github.com/rafsunsheikh/classcaption/graphs/contributors
-[stars-shield]: https://img.shields.io/github/stars/rafsunsheikh/classcaption.svg?style=for-the-badge
-[stars-url]: https://github.com/rafsunsheikh/classcaption/stargazers
-[issues-shield]: https://img.shields.io/github/issues/rafsunsheikh/classcaption.svg?style=for-the-badge
-[issues-url]: https://github.com/rafsunsheikh/classcaption/issues
-[license-shield]: https://img.shields.io/github/license/rafsunsheikh/classcaption.svg?style=for-the-badge
-[license-url]: https://github.com/rafsunsheikh/classcaption/blob/main/LICENSE
+[contributors-shield]: https://img.shields.io/github/contributors/rafsunsheikh/ClassCaption.svg?style=for-the-badge
+[contributors-url]: https://github.com/rafsunsheikh/ClassCaption/graphs/contributors
+[stars-shield]: https://img.shields.io/github/stars/rafsunsheikh/ClassCaption.svg?style=for-the-badge
+[stars-url]: https://github.com/rafsunsheikh/ClassCaption/stargazers
+[issues-shield]: https://img.shields.io/github/issues/rafsunsheikh/ClassCaption.svg?style=for-the-badge
+[issues-url]: https://github.com/rafsunsheikh/ClassCaption/issues
+[license-shield]: https://img.shields.io/github/license/rafsunsheikh/ClassCaption.svg?style=for-the-badge
+[license-url]: https://github.com/rafsunsheikh/ClassCaption/blob/main/LICENSE
 [offline-shield]: https://img.shields.io/badge/100%25-offline-success?style=for-the-badge
 [offline-url]: #about-the-project
 [platform-shield]: https://img.shields.io/badge/macOS-Apple%20Silicon-black?style=for-the-badge&logo=apple
