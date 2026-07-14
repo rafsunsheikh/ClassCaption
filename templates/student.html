@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Live Lecture · Translation</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body class="student">
+  <!-- Start overlay: pick a language + unlock audio (required by phones) -->
+  <div class="overlay" id="overlay">
+    <h1>🎧 Live Lecture Translation</h1>
+    <p>Choose your language, then tap Start. Put on your headphones — you'll see
+       and hear the lecture in your language.</p>
+    <div class="lang-choices" id="langChoices">
+      {% for code, meta in languages.items() %}
+      <button class="pill" data-lang="{{ code }}" data-bcp47="{{ meta.bcp47 }}">{{ meta.label }}</button>
+      {% endfor %}
+    </div>
+    <button class="start-btn" id="startBtn" disabled>Start</button>
+    <p id="voiceNote" style="font-size:.85rem"></p>
+  </div>
+
+  <main>
+    <div class="live-top">
+      <h1><span class="dot off" id="dot"></span> <span id="langTitle"></span></h1>
+      <div>
+        <button class="pill" id="switchLang">Change language</button>
+      </div>
+    </div>
+    <div class="captions" id="captions"></div>
+  </main>
+
+  <div class="controlbar">
+    <button class="pill active" id="audioToggle">🔊 Audio on</button>
+    <button class="pill active" id="catchupToggle">⏩ Keep up with live</button>
+    <button class="pill" id="fontBtn">Aa</button>
+    <button class="pill" id="speedBtn">Speed 1.0×</button>
+  </div>
+
+  <script>
+    const LANGS = {{ languages|tojson }};
+    const captions = document.getElementById('captions');
+    const dot = document.getElementById('dot');
+
+    let lang = null, bcp47 = null;
+    let audioOn = true, catchUp = true, speaking = false;
+    let ttsQueue = [];
+    let rate = 1.0;
+    const sizes = ['1.5rem', '2rem', '2.6rem'];
+    let sizeIdx = 1;
+    let voice = null, useServerTTS = false;
+    const lines = new Map();      // seq -> {el, textEl}
+
+    // ---- voice discovery ----
+    function pickVoice() {
+      const voices = speechSynthesis.getVoices();
+      // Prefer an exact bcp47 match, then any voice whose lang starts with the code.
+      voice = voices.find(v => v.lang.replace('_','-').toLowerCase() === bcp47.toLowerCase())
+           || voices.find(v => v.lang.replace('_','-').toLowerCase().startsWith(lang.toLowerCase()));
+      useServerTTS = !voice;
+      return voice;
+    }
+
+    // ---- speaking (Web Speech, falling back to server-rendered audio) ----
+    let serverAudio = new Audio();
+    function speakNow(text, onDone) {
+      if (!text) { onDone(); return; }
+      if (!useServerTTS && voice) {
+        const u = new SpeechSynthesisUtterance(text);
+        u.voice = voice; u.lang = bcp47; u.rate = rate;
+        u.onend = onDone; u.onerror = onDone;
+        speechSynthesis.speak(u);
+      } else {
+        serverAudio.src = `/say?lang=${lang}&text=${encodeURIComponent(text)}`;
+        serverAudio.playbackRate = rate;
+        serverAudio.onended = onDone;
+        serverAudio.onerror = onDone;
+        serverAudio.play().catch(onDone);
+      }
+    }
+
+    function drive() {
+      if (speaking || !audioOn || ttsQueue.length === 0) return;
+      // Catch-up: if we've fallen behind, jump straight to the newest line.
+      if (catchUp && ttsQueue.length > 1) ttsQueue = [ttsQueue[ttsQueue.length - 1]];
+      const item = ttsQueue.shift();
+      speaking = true;
+      markSpeaking(item.seq, true);
+      speakNow(item.text, () => {
+        speaking = false;
+        markSpeaking(item.seq, false);
+        drive();
+      });
+    }
+    function enqueueSpeak(text, seq) { ttsQueue.push({ text, seq }); drive(); }
+
+    function markSpeaking(seq, on) {
+      const line = lines.get(seq);
+      if (line) line.el.classList.toggle('speaking', on);
+    }
+
+    // ---- rendering ----
+    let currentSeq = null;
+    function ensureLine(seq) {
+      let line = lines.get(seq);
+      if (!line) {
+        const el = document.createElement('div');
+        el.className = 'cap';
+        const textEl = document.createElement('span');
+        textEl.innerHTML = '<span class="placeholder">…</span>';
+        el.appendChild(textEl);
+        captions.appendChild(el);
+        line = { el, textEl };
+        lines.set(seq, line);
+        // Trim very old lines to keep the DOM light.
+        if (lines.size > 60) {
+          const oldest = Math.min(...lines.keys());
+          const o = lines.get(oldest);
+          if (o) { o.el.remove(); lines.delete(oldest); }
+        }
+      }
+      if (currentSeq !== null && lines.get(currentSeq))
+        lines.get(currentSeq).el.classList.remove('current');
+      el_current(seq);
+      return line;
+    }
+    function el_current(seq) {
+      currentSeq = seq;
+      const line = lines.get(seq);
+      if (line) line.el.classList.add('current');
+    }
+
+    function atBottom() {
+      return (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200;
+    }
+    function scrollDown(force) {
+      if (force || atBottom()) window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function onEvent(ev) {
+      const line = ensureLine(ev.seq);
+      const text = ev[lang];
+      if (!ev.final) {
+        // English-only heads-up: keep the placeholder, just mark as current.
+        scrollDown();
+        return;
+      }
+      const shown = (text && text.trim()) ? text : ev.en;   // fall back to English
+      line.textEl.textContent = shown;
+      scrollDown();
+      enqueueSpeak(shown, ev.seq);
+    }
+
+    // ---- connection ----
+    let es = null;
+    function connect() {
+      es = new EventSource('/stream');
+      es.onopen = () => dot.className = 'dot on';
+      es.onerror = () => dot.className = 'dot off';   // EventSource auto-reconnects
+      es.onmessage = (e) => { try { onEvent(JSON.parse(e.data)); } catch (_) {} };
+    }
+
+    // ---- controls ----
+    document.getElementById('audioToggle').onclick = (e) => {
+      audioOn = !audioOn;
+      e.target.classList.toggle('active', audioOn);
+      e.target.textContent = audioOn ? '🔊 Audio on' : '🔇 Audio off';
+      if (!audioOn) { speechSynthesis.cancel(); serverAudio.pause(); speaking = false; ttsQueue = []; }
+      else drive();
+    };
+    document.getElementById('catchupToggle').onclick = (e) => {
+      catchUp = !catchUp;
+      e.target.classList.toggle('active', catchUp);
+      e.target.textContent = catchUp ? '⏩ Keep up with live' : '📖 Play everything';
+    };
+    document.getElementById('fontBtn').onclick = () => {
+      sizeIdx = (sizeIdx + 1) % sizes.length;
+      document.documentElement.style.setProperty('--cap-size', sizes[sizeIdx]);
+    };
+    document.getElementById('speedBtn').onclick = (e) => {
+      const speeds = [0.9, 1.0, 1.15, 1.3];
+      rate = speeds[(speeds.indexOf(rate) + 1) % speeds.length];
+      e.target.textContent = `Speed ${rate.toFixed(2).replace(/0$/,'')}×`;
+    };
+    document.getElementById('switchLang').onclick = () => {
+      if (es) es.close();
+      speechSynthesis.cancel(); serverAudio.pause();
+      document.getElementById('overlay').style.display = 'flex';
+    };
+
+    // ---- language selection + start ----
+    const startBtn = document.getElementById('startBtn');
+    const voiceNote = document.getElementById('voiceNote');
+    document.querySelectorAll('#langChoices .pill').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('#langChoices .pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        lang = btn.dataset.lang; bcp47 = btn.dataset.bcp47;
+        startBtn.disabled = false;
+        pickVoice();
+        voiceNote.textContent = voice
+          ? `Voice: ${voice.name}`
+          : 'Your device has no built-in voice for this language — audio will be generated by the teacher\'s Mac instead.';
+      };
+    });
+
+    startBtn.onclick = () => {
+      // Unlock audio with a silent utterance (required on iOS/Safari).
+      const warm = new SpeechSynthesisUtterance(' ');
+      warm.volume = 0; speechSynthesis.speak(warm);
+      document.getElementById('overlay').style.display = 'none';
+      document.getElementById('langTitle').textContent = LANGS[lang].label;
+      captions.innerHTML = ''; lines.clear(); currentSeq = null; ttsQueue = [];
+      pickVoice();
+      if (!es) connect();
+    };
+
+    // Voices can load asynchronously.
+    speechSynthesis.onvoiceschanged = () => { if (lang) pickVoice(); };
+  </script>
+</body>
+</html>

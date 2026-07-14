@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Lecture · Teacher Console</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <main>
+    <div class="live-top">
+      <h1>🎙️ ClassCaption — Teacher Console</h1>
+    </div>
+
+    <div class="console-grid">
+      <!-- Control + status -->
+      <div class="panel">
+        <button class="big-btn go" id="toggleBtn">▶ Start lecture</button>
+        <p class="sub" id="hint" style="margin-top:14px">
+          Click Start, then just talk. Your Mac transcribes your English and streams
+          Chinese &amp; Vietnamese to every connected student.
+        </p>
+        <div id="err" class="banner error hidden"></div>
+
+        <div style="margin-top:18px">
+          <div class="stat"><span class="k">Status</span><span id="st-run">stopped</span></div>
+          <div class="stat"><span class="k">Students connected</span><span id="st-students">0</span></div>
+          <div class="stat"><span class="k">Sentences sent</span><span id="st-utt">0</span></div>
+          <div class="stat"><span class="k">Running for</span><span id="st-up">0s</span></div>
+          <div class="stat"><span class="k">Speech model</span><span id="st-model">—</span></div>
+          <div class="stat"><span class="k">Translator</span><span id="st-tr">—</span></div>
+        </div>
+      </div>
+
+      <!-- Share with students -->
+      <div class="panel" style="text-align:center">
+        <h3 style="margin-top:0">Students: open this on your phone</h3>
+        <div class="qr-box">{{ qr_svg|safe }}</div>
+        <div class="url-big">{{ student_url }}</div>
+        <p class="sub">Connect to the same Wi-Fi, then scan the code or type the address.</p>
+        <p class="sub" style="font-size:.82rem">
+          If phones can't open it, your Wi-Fi may block device-to-device traffic
+          (“client isolation”). Use a phone hotspot or a small travel router for the class.
+        </p>
+      </div>
+    </div>
+
+    <!-- Live self-check feed -->
+    <div class="panel" style="margin-top:22px">
+      <div class="block-head"><h3 style="margin:0">Live feed (what students receive)</h3>
+        <span class="dot off" id="feedDot"></span></div>
+      <div class="feed" id="feed"></div>
+    </div>
+  </main>
+
+  <script>
+    const toggleBtn = document.getElementById('toggleBtn');
+    const err = document.getElementById('err');
+    const feed = document.getElementById('feed');
+    let running = false;
+
+    function setBtn(r) {
+      running = r;
+      toggleBtn.textContent = r ? '■ Stop lecture' : '▶ Start lecture';
+      toggleBtn.className = 'big-btn ' + (r ? 'stop' : 'go');
+    }
+
+    async function post(url) {
+      const res = await fetch(url, { method: 'POST' });
+      return res.json();
+    }
+
+    toggleBtn.onclick = async () => {
+      toggleBtn.disabled = true;
+      try {
+        const data = await post(running ? '/live/stop' : '/live/start');
+        if (data.ok === false) { err.textContent = data.error; err.classList.remove('hidden'); }
+        else err.classList.add('hidden');
+      } finally { toggleBtn.disabled = false; refresh(); }
+    };
+
+    async function refresh() {
+      try {
+        const s = await (await fetch('/live/status')).json();
+        setBtn(s.running);
+        document.getElementById('st-run').textContent = s.error ? 'error' : (s.running ? 'listening…' : 'stopped');
+        document.getElementById('st-students').textContent = s.students;
+        document.getElementById('st-utt').textContent = s.utterances;
+        document.getElementById('st-up').textContent = s.uptime + 's';
+        document.getElementById('st-model').textContent = s.model;
+        document.getElementById('st-tr').textContent = s.ollama_model;
+        if (s.error) { err.textContent = s.error; err.classList.remove('hidden'); }
+      } catch (_) {}
+    }
+    setInterval(refresh, 2000);
+    refresh();
+
+    // Mirror the student stream so the teacher can confirm it's working.
+    const es = new EventSource('/stream');
+    es.onopen = () => document.getElementById('feedDot').className = 'dot on';
+    es.onerror = () => document.getElementById('feedDot').className = 'dot off';
+    const rows = new Map();
+    es.onmessage = (e) => {
+      let ev; try { ev = JSON.parse(e.data); } catch (_) { return; }
+      let row = rows.get(ev.seq);
+      if (!row) {
+        row = document.createElement('div');
+        feed.prepend(row);
+        rows.set(ev.seq, row);
+        if (rows.size > 30) { const k = Math.min(...rows.keys()); rows.get(k).remove(); rows.delete(k); }
+      }
+      const zh = ev.zh || (ev.final ? '' : '…');
+      const vi = ev.vi || (ev.final ? '' : '…');
+      row.innerHTML = `<div class="en">EN: ${ev.en}</div>` +
+                      `<div class="tr">中文: ${zh}<br>VI: ${vi}</div>`;
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Whisper model weights (large binaries — never commit)
+models/*.bin
+!models/.gitkeep
+
+# Runtime data (generated TTS clips, uploads)
+uploads/*
+!uploads/.gitkeep
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# OS / editor cruft
+.DS_Store
+.idea/
+.vscode/
